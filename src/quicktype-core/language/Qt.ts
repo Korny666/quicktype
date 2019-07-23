@@ -62,7 +62,7 @@ export const qtOptions = {
     ),
     wstring: new EnumOption(
         "wstring",
-        "Store strings using Utf-16 std::wstring, rather than Utf-8 std::string",
+        "Store strings using Utf-16 std::wstring, rather than Utf-8 QString",
         [["use-string", false], ["use-wstring", true]],
         "use-string"
     ),
@@ -109,8 +109,8 @@ export const qtOptions = {
     boost: new BooleanOption("boost", "Require a dependency on boost. Without boost, C++17 is required", true)
 };
 
-export class CPlusPlusTargetLanguage extends TargetLanguage {
-    constructor(displayName: string = "C++", names: string[] = ["c++", "cpp", "cplusplus"], extension: string = "cpp") {
+export class QtTargetLanguage extends TargetLanguage {
+    constructor(displayName: string = "Qt", names: string[] = ["qt"], extension: string = "qt") {
         super(displayName, names, extension);
     }
 
@@ -136,11 +136,8 @@ export class CPlusPlusTargetLanguage extends TargetLanguage {
         return true;
     }
 
-    protected makeRenderer(
-        renderContext: RenderContext,
-        untypedOptionValues: { [name: string]: any }
-    ): CPlusPlusRenderer {
-        return new CPlusPlusRenderer(this, renderContext, getOptionValues(qtOptions, untypedOptionValues));
+    protected makeRenderer(renderContext: RenderContext, untypedOptionValues: { [name: string]: any }): QtRenderer {
+        return new QtRenderer(this, renderContext, getOptionValues(qtOptions, untypedOptionValues));
     }
 }
 
@@ -157,6 +154,7 @@ function constraintsForType(
 const legalizeName = legalizeCharacters(cp => isAscii(cp) && isLetterOrUnderscoreOrDigit(cp));
 
 const keywords = [
+    //todo add some of qt?
     "alignas",
     "alignof",
     "and",
@@ -271,7 +269,7 @@ const keywords = [
  * the class owns it. We COULD return unique_ptr references, which practically
  * kills the uniqueness of the smart pointer -> hence we use shared_ptrs.
  */
-const optionalType = "std::shared_ptr";
+const optionalType = "QSharedPointer";
 
 /**
  * To be able to support circles in multiple files -
@@ -437,7 +435,7 @@ class BaseString {
     }
 }
 
-export class CPlusPlusRenderer extends ConvenienceRenderer {
+export class QtRenderer extends ConvenienceRenderer {
     /**
      * For forward declaration practically
      */
@@ -496,12 +494,12 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
         if (_options.boost) {
             this._optionalType = "boost::optional";
             this._nulloptType = "boost::none";
-            this._variantType = "boost::variant";
+            this._variantType = "QVariant";
             this._variantIndexMethodName = "which";
         } else {
             this._optionalType = "std::optional";
             this._nulloptType = "std::nullopt";
-            this._variantType = "std::variant";
+            this._variantType = "QVariant";
             this._variantIndexMethodName = "index";
         }
 
@@ -767,14 +765,14 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
         }
     }
 
-    protected cppTypeInOptional(
+    protected qtTypeInOptional(
         nonNulls: ReadonlySet<Type>,
         ctx: TypeContext,
         withIssues: boolean,
         forceNarrowString: boolean
     ): Sourcelike {
         if (nonNulls.size === 1) {
-            return this.cppType(defined(iterableFirst(nonNulls)), ctx, withIssues, forceNarrowString);
+            return this.qtType(defined(iterableFirst(nonNulls)), ctx, withIssues, forceNarrowString);
         }
         const typeList: Sourcelike = [];
         for (const t of nonNulls) {
@@ -782,7 +780,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 typeList.push(", ");
             }
             typeList.push(
-                this.cppType(
+                this.qtType(
                     t,
                     {
                         needsForwardIndirection: true,
@@ -801,7 +799,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
         const [maybeNull, nonNulls] = removeNullFromUnion(u, true);
         assert(nonNulls.size >= 2, "Variant not needed for less than two types.");
         const indirection = maybeNull !== null;
-        const variant = this.cppTypeInOptional(
+        const variant = this.qtTypeInOptional(
             nonNulls,
             { needsForwardIndirection: !indirection, needsOptionalIndirection: !indirection, inJsonNamespace },
             true,
@@ -828,7 +826,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
         return [optionalType, "<", typeSrc, ">"];
     }
 
-    protected cppType(t: Type, ctx: TypeContext, withIssues: boolean, forceNarrowString: boolean): Sourcelike {
+    protected qtType(t: Type, ctx: TypeContext, withIssues: boolean, forceNarrowString: boolean): Sourcelike {
         const inJsonNamespace = ctx.inJsonNamespace;
         return matchType<Sourcelike>(
             t,
@@ -837,18 +835,18 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             _nullType =>
                 maybeAnnotated(withIssues, nullTypeIssueAnnotation, [this.jsonQualifier(inJsonNamespace), "json"]),
             _boolType => "bool",
-            _integerType => "int64_t",
+            _integerType => "qint64",
             _doubleType => "double",
             _stringType => {
                 if (forceNarrowString) {
-                    return "std::string";
+                    return "QString";
                 } else {
                     return this._stringType.getType();
                 }
             },
             arrayType => [
-                "std::vector<",
-                this.cppType(
+                "QVector<",
+                this.qtType(
                     arrayType.items,
                     { needsForwardIndirection: false, needsOptionalIndirection: true, inJsonNamespace },
                     withIssues,
@@ -864,13 +862,13 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             mapType => {
                 let keyType = this._stringType.getType();
                 if (forceNarrowString) {
-                    keyType = "std::string";
+                    keyType = "QString";
                 }
                 return [
-                    "std::map<",
+                    "QMap<",
                     keyType,
                     ", ",
-                    this.cppType(
+                    this.qtType(
                         mapType.values,
                         { needsForwardIndirection: false, needsOptionalIndirection: true, inJsonNamespace },
                         withIssues,
@@ -886,7 +884,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 return [
                     optionalType,
                     "<",
-                    this.cppType(
+                    this.qtType(
                         nullable,
                         { needsForwardIndirection: false, needsOptionalIndirection: false, inJsonNamespace },
                         withIssues,
@@ -935,7 +933,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 if (this.unionNeedsName(t) && isClassMember) {
                     /**
                      * This is NOT ENOUGH.
-                     * We have a variant member in a class, e.g. defined with a boost::variant.
+                     * We have a variant member in a class, e.g. defined with a QVariant.
                      * The compiler can only compile the class if IT KNOWS THE SIZES
                      * OF ALL MEMBERS OF THE VARIANT.
                      * So it means that you must include ALL SUBTYPES (practically classes only)
@@ -978,7 +976,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
 
             this.forEachClassProperty(c, "none", (name, jsonName, property) => {
                 this.emitMember(
-                    this.cppType(
+                    this.qtType(
                         property.type,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: false },
                         true,
@@ -1001,7 +999,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             this.emitDescription(this.descriptionForClassProperty(c, jsonName));
             if (!this._options.codeFormat) {
                 this.emitMember(
-                    this.cppType(
+                    this.qtType(
                         property.type,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: false },
                         true,
@@ -1013,7 +1011,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 const [getterName, mutableGetterName, setterName] = defined(
                     this._gettersAndSettersForPropertyName.get(name)
                 );
-                const rendered = this.cppType(
+                const rendered = this.qtType(
                     property.type,
                     { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: false },
                     true,
@@ -1175,13 +1173,13 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 ["inline void from_json(", this.withConst("json"), " & j, ", ourQualifier, className, "& x)"],
                 false,
                 () => {
-                    cppType = this.cppType(
+                    cppType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
                         true
                     );
-                    toType = this.cppType(
+                    toType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
@@ -1204,13 +1202,13 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 ["inline void to_json(json & j, ", this.withConst([ourQualifier, className]), " & x)"],
                 false,
                 () => {
-                    cppType = this.cppType(
+                    cppType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
                         false
                     );
-                    toType = this.cppType(
+                    toType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
@@ -1250,7 +1248,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                     if (t instanceof UnionType) {
                         const [maybeNull, nonNulls] = removeNullFromUnion(t, true);
                         if (maybeNull !== null) {
-                            cppType = this.cppTypeInOptional(
+                            cppType = this.qtTypeInOptional(
                                 nonNulls,
                                 {
                                     needsForwardIndirection: false,
@@ -1260,7 +1258,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                                 false,
                                 true
                             );
-                            toType = this.cppTypeInOptional(
+                            toType = this.qtTypeInOptional(
                                 nonNulls,
                                 {
                                     needsForwardIndirection: false,
@@ -1319,13 +1317,13 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                         );
                         return;
                     }
-                    cppType = this.cppType(
+                    cppType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
                         true
                     );
-                    toType = this.cppType(
+                    toType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
@@ -1361,13 +1359,13 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 this.emitLine("j = json::object();");
                 this.forEachClassProperty(c, "none", (name, json, p) => {
                     const t = p.type;
-                    cppType = this.cppType(
+                    cppType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
                         false
                     );
-                    toType = this.cppType(
+                    toType = this.qtType(
                         t,
                         { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                         false,
@@ -1422,7 +1420,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
 
     protected emitUnionHeaders(u: UnionType): void {
         const nonNulls = removeNullFromUnion(u, true)[1];
-        const variantType = this.cppTypeInOptional(
+        const variantType = this.qtTypeInOptional(
             nonNulls,
             { needsForwardIndirection: false, needsOptionalIndirection: false, inJsonNamespace: true },
             false,
@@ -1447,7 +1445,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             ["enum", "is_string"]
         ];
         const nonNulls = removeNullFromUnion(u, true)[1];
-        const variantType = this.cppTypeInOptional(
+        const variantType = this.qtTypeInOptional(
             nonNulls,
             { needsForwardIndirection: false, needsOptionalIndirection: false, inJsonNamespace: true },
             false,
@@ -1464,13 +1462,13 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                     if (typeForKind === undefined) continue;
                     this.emitLine(onFirst ? "if" : "else if", " (j.", func, "())");
                     this.indent(() => {
-                        const cppType = this.cppType(
+                        const cppType = this.qtType(
                             typeForKind,
                             { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                             false,
                             true
                         );
-                        let toType = this.cppType(
+                        let toType = this.qtType(
                             typeForKind,
                             { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
                             false,
@@ -1499,7 +1497,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 for (const t of nonNulls) {
                     this.emitLine("case ", i.toString(), ":");
                     this.indent(() => {
-                        const cppType = this.cppType(
+                        const cppType = this.qtType(
                             t,
                             {
                                 needsForwardIndirection: true,
@@ -1509,7 +1507,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                             false,
                             false
                         );
-                        const toType = this.cppType(
+                        const toType = this.qtType(
                             t,
                             {
                                 needsForwardIndirection: true,
@@ -1610,7 +1608,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             "using ",
             name,
             " = ",
-            this.cppType(
+            this.qtType(
                 t,
                 { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: false },
                 true,
@@ -1625,7 +1623,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             "interposing",
             u =>
                 this.sourcelikeToString(
-                    this.cppTypeInOptional(
+                    this.qtTypeInOptional(
                         removeNullFromUnion(u, true)[1],
                         { needsForwardIndirection: false, needsOptionalIndirection: false, inJsonNamespace: true },
                         false,
@@ -1641,7 +1639,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             "interposing",
             u =>
                 this.sourcelikeToString(
-                    this.cppTypeInOptional(
+                    this.qtTypeInOptional(
                         removeNullFromUnion(u, true)[1],
                         { needsForwardIndirection: false, needsOptionalIndirection: false, inJsonNamespace: true },
                         false,
@@ -1804,7 +1802,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 this._stringType.getConstType(),
                 " name, ",
                 this.withConst(classConstraint),
-                " & c, int64_t value)"
+                " & c, qint64 value)"
             ],
             false,
             () => {
@@ -1997,13 +1995,9 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
 
         this.ensureBlankLine();
 
-        this.emitBlock(
-            ["inline json get_untyped(", this.withConst("json"), " & j, std::string property)"],
-            false,
-            () => {
-                this.emitLine("return get_untyped(j, property.data());");
-            }
-        );
+        this.emitBlock(["inline json get_untyped(", this.withConst("json"), " & j, QString property)"], false, () => {
+            this.emitLine("return get_untyped(j, property.data());");
+        });
 
         this.ensureBlankLine();
 
@@ -2034,7 +2028,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             this.emitLine("template <typename T>");
 
             this.emitBlock(
-                ["inline ", optionalType, "<T> get_optional(", this.withConst("json"), " & j, std::string property)"],
+                ["inline ", optionalType, "<T> get_optional(", this.withConst("json"), " & j, QString property)"],
                 false,
                 () => {
                     this.emitLine("return get_optional<T>(j, property.data());");
@@ -2056,6 +2050,10 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             }
             this.emitInclude(true, `stdexcept`);
             this.emitInclude(true, `regex`);
+            this.emitInclude(true, `QString`);
+            this.emitInclude(true, `QMap`);
+            this.emitInclude(true, `QVariant`);
+            this.emitInclude(true, `QVector`);
         }
 
         if (this._options.wstring) {
@@ -2195,7 +2193,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
             if (t.type instanceof ClassType) {
                 /**
                  * Ok. We can NOT forward declare direct class members, e.g. a class type is included
-                 * at level#0. HOWEVER if it is not a direct class member (e.g. std::shared_ptr<Class>),
+                 * at level#0. HOWEVER if it is not a direct class member (e.g. QSharedPointer<Class>),
                  * - level > 0 - then we can SURELY forward declare it.
                  */
                 propRecord.typeKind = "class";
@@ -2394,7 +2392,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 if (isNamedType(t) && (t instanceof ClassType || t instanceof EnumType || t instanceof UnionType)) {
                     return new Set([
                         this.sourcelikeToString(
-                            this.cppType(
+                            this.qtType(
                                 t,
                                 {
                                     needsForwardIndirection: false,
@@ -2422,14 +2420,14 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
     }
 
     protected isConversionRequired(t: Type) {
-        let originalType = this.cppType(
+        let originalType = this.qtType(
             t,
             { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
             false,
             false
         );
 
-        let newType = this.cppType(
+        let newType = this.qtType(
             t,
             { needsForwardIndirection: true, needsOptionalIndirection: true, inJsonNamespace: true },
             false,
@@ -2442,12 +2440,12 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
     public NarrowString = new (class extends BaseString implements StringType {
         constructor() {
             super(
-                "std::string",
-                "const std::string & ",
+                "QString",
+                "const QString & ",
                 "std::smatch",
                 "std::regex",
                 "",
-                new WrappingCode(["std::to_string("], [")"]),
+                new WrappingCode(["QString::number("], [")"]),
                 "",
                 ""
             );
@@ -2468,14 +2466,14 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
     })();
 
     public WideString = new (class extends BaseString implements StringType {
-        constructor(public superThis: CPlusPlusRenderer) {
+        constructor(public superThis: QtRenderer) {
             super(
                 "std::wstring",
                 "const std::wstring & ",
                 "std::wsmatch",
                 "std::wregex",
                 "L",
-                new WrappingCode(["std::to_wstring("], [")"]),
+                new WrappingCode(["QString::number("], [")"]),
                 "Utf16_Utf8",
                 "convert"
             );
@@ -2515,7 +2513,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 this.superThis.emitLine("private:");
                 this.superThis.emitLine("template<typename TF, typename TT>");
                 this.superThis.emitBlock(
-                    ["static toType convert(tag<std::shared_ptr<TF> >, tag<std::shared_ptr<TT> >, fromType ptr)"],
+                    ["static toType convert(tag<QSharedPointer<TF> >, tag<QSharedPointer<TT> >, fromType ptr)"],
                     false,
                     () => {
                         this.superThis.emitLine(
@@ -2527,11 +2525,11 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
 
                 this.superThis.emitLine("template<typename TF, typename TT>");
                 this.superThis.emitBlock(
-                    ["static toType convert(tag<std::vector<TF> >, tag<std::vector<TT> >, fromType v)"],
+                    ["static toType convert(tag<QVector<TF> >, tag<QVector<TT> >, fromType v)"],
                     false,
                     () => {
                         this.superThis.emitLine("auto it = v.begin();");
-                        this.superThis.emitLine("auto newVector = std::vector<TT>();");
+                        this.superThis.emitLine("auto newVector = QVector<TT>();");
                         this.superThis.emitBlock(["while (it != v.end())"], false, () => {
                             this.superThis.emitLine("newVector.push_back(Utf16_Utf8<TF,TT>::convert(*it));");
                             this.superThis.emitLine("it++;");
@@ -2543,16 +2541,16 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
 
                 this.superThis.emitLine("template<typename KF, typename VF, typename KT, typename VT>");
                 this.superThis.emitBlock(
-                    ["static toType convert(tag<std::map<KF,VF> >, tag<std::map<KT,VT> >, fromType m)"],
+                    ["static toType convert(tag<QMap<KF,VF> >, tag<QMap<KT,VT> >, fromType m)"],
                     false,
                     () => {
                         this.superThis.emitLine("auto it = m.begin();");
-                        this.superThis.emitLine("auto newMap = std::map<KT, VT>();");
+                        this.superThis.emitLine("auto newMap = QMap<KT, VT>();");
                         this.superThis.emitBlock(["while (it != m.end())"], false, () => {
                             this.superThis.emitLine(
                                 "newMap.insert(std::pair<KT, VT>(Utf16_Utf8<KF, KT>::convert(it->first), Utf16_Utf8<VF, VT>::convert(it->second)));"
                             );
-                            this.superThis.emitLine("it++;");
+                            this.superThis.emitLine("++it;");
                         });
                         this.superThis.emitLine("return newMap;");
                     }
@@ -2566,7 +2564,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 this.superThis.ensureBlankLine();
 
                 this.superThis.emitBlock(
-                    ["static std::wstring convert(tag<std::string>, tag<std::wstring>, std::string str)"],
+                    ["static std::wstring convert(tag<QString>, tag<std::wstring>, QString str)"],
                     false,
                     () => {
                         this.superThis.emitLine(
@@ -2577,7 +2575,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 this.superThis.ensureBlankLine();
 
                 this.superThis.emitBlock(
-                    ["static std::string convert(tag<std::wstring>, tag<std::string>, std::wstring str)"],
+                    ["static QString convert(tag<std::wstring>, tag<QString>, std::wstring str)"],
                     false,
                     () => {
                         this.superThis.emitLine(
@@ -2601,7 +2599,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
                 this.superThis.emitLine(
                     "return ",
                     this.superThis.ourQualifier(false),
-                    "Utf16_Utf8<std::string, std::wstring>::convert(s.str()); "
+                    "Utf16_Utf8<QString, std::wstring>::convert(s.str()); "
                 );
             });
             this.superThis.ensureBlankLine();

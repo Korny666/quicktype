@@ -71,6 +71,7 @@ export { ConvenienceRenderer } from "./ConvenienceRenderer";
 export { uriTypeAttributeKind } from "./attributes/URIAttributes";
 
 export { CPlusPlusTargetLanguage, CPlusPlusRenderer } from "./language/CPlusPlus";
+export { QtTargetLanguage, QtRenderer } from "./language/Qt";
 export {
     CSharpTargetLanguage,
     cSharpOptions,

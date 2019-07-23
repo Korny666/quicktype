@@ -373,6 +373,56 @@ export const CPlusPlusLanguage: Language = {
   sourceFiles: ["src/language/CPlusPlus.ts"]
 };
 
+export const QtLanguage: Language = {
+  name: "Qt",
+  base: "",
+  setupCommand:
+    "curl -o json.hpp https://raw.githubusercontent.com/nlohmann/json/87df1d6708915ffbfa26a051ad7562ecc22e5579/src/json.hpp",
+  compileCommand: "g++ -O0 -o quicktype -std=c++17 main.cpp",
+  runCommand(sample: string) {
+    return `./quicktype "${sample}"`;
+  },
+  diffViaSchema: true,
+  skipDiffViaSchema: [
+    "github-events.json",
+    "bug427.json",
+    "keywords.json",
+    "0a91a.json",
+    "0cffa.json",
+    "127a1.json",
+    "26b49.json",
+    "34702.json",
+    "7681c.json",
+    "7f568.json",
+    "c3303.json",
+    "e8b04.json",
+    "f6a65.json",
+    "fcca3.json"
+  ],
+  allowMissingNull: false,
+  features: ["minmax", "minmaxlength", "pattern", "enum", "union", "no-defaults"],
+  output: "TopLevel.hpp",
+  topLevel: "TopLevel",
+  skipJSON: [
+    // fails on a string containing null
+    "nst-test-suite.json",
+    // compiler error I don't want to figure out right now
+    "nbl-stats.json"
+  ],
+  skipMiscJSON: false,
+  skipSchema: [],
+  rendererOptions: {},
+  quickTestRendererOptions: [
+    { unions: "indirection" },
+    { "source-style": "multi-source" },
+    { "code-format": "with-struct" },
+    { wstring: "use-wstring" },
+    { "const-style": "east-const" },
+    { boost: "false" }
+  ],
+  sourceFiles: ["src/language/Qt.ts"]
+};
+
 export const ElmLanguage: Language = {
   name: "elm",
   base: "test/fixtures/elm",

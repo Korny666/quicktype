@@ -5,6 +5,7 @@ import { TargetLanguage } from "../TargetLanguage";
 import { NewtonsoftCSharpTargetLanguage } from "./CSharp";
 import { GoTargetLanguage } from "./Golang";
 import { CPlusPlusTargetLanguage } from "./CPlusPlus";
+import { QtTargetLanguage } from "./Qt";
 import { ObjectiveCTargetLanguage } from "./Objective-C";
 import { JavaTargetLanguage } from "./Java";
 import { JavaScriptTargetLanguage } from "./JavaScript";
@@ -26,6 +27,7 @@ export const all: TargetLanguage[] = [
     new RustTargetLanguage(),
     new CrystalTargetLanguage(),
     new CPlusPlusTargetLanguage(),
+    new QtTargetLanguage(),
     new ObjectiveCTargetLanguage(),
     new JavaTargetLanguage(),
     new TypeScriptTargetLanguage(),
