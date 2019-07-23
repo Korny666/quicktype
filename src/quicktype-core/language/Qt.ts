@@ -39,7 +39,7 @@ const upperUnderscoreValue: [string, NamingStyle] = ["upper-underscore-case", "u
 const pascalUpperAcronymsValue: [string, NamingStyle] = ["pascal-case-upper-acronyms", "pascal-upper-acronyms"];
 const camelUpperAcronymsValue: [string, NamingStyle] = ["camel-case-upper-acronyms", "camel-upper-acronyms"];
 
-export const cPlusPlusOptions = {
+export const qtOptions = {
     typeSourceStyle: new EnumOption(
         "source-style",
         "Source code generation type,  whether to generate single or multiple source files",
@@ -116,19 +116,19 @@ export class CPlusPlusTargetLanguage extends TargetLanguage {
 
     protected getOptions(): Option<any>[] {
         return [
-            cPlusPlusOptions.justTypes,
-            cPlusPlusOptions.namespace,
-            cPlusPlusOptions.codeFormat,
-            cPlusPlusOptions.wstring,
-            cPlusPlusOptions.msbuildPermissive,
-            cPlusPlusOptions.westConst,
-            cPlusPlusOptions.typeSourceStyle,
-            cPlusPlusOptions.includeLocation,
-            cPlusPlusOptions.typeNamingStyle,
-            cPlusPlusOptions.memberNamingStyle,
-            cPlusPlusOptions.enumeratorNamingStyle,
-            cPlusPlusOptions.enumType,
-            cPlusPlusOptions.boost
+            qtOptions.justTypes,
+            qtOptions.namespace,
+            qtOptions.codeFormat,
+            qtOptions.wstring,
+            qtOptions.msbuildPermissive,
+            qtOptions.westConst,
+            qtOptions.typeSourceStyle,
+            qtOptions.includeLocation,
+            qtOptions.typeNamingStyle,
+            qtOptions.memberNamingStyle,
+            qtOptions.enumeratorNamingStyle,
+            qtOptions.enumType,
+            qtOptions.boost
         ];
     }
 
@@ -140,7 +140,7 @@ export class CPlusPlusTargetLanguage extends TargetLanguage {
         renderContext: RenderContext,
         untypedOptionValues: { [name: string]: any }
     ): CPlusPlusRenderer {
-        return new CPlusPlusRenderer(this, renderContext, getOptionValues(cPlusPlusOptions, untypedOptionValues));
+        return new CPlusPlusRenderer(this, renderContext, getOptionValues(qtOptions, untypedOptionValues));
     }
 }
 
@@ -466,7 +466,7 @@ export class CPlusPlusRenderer extends ConvenienceRenderer {
     constructor(
         targetLanguage: TargetLanguage,
         renderContext: RenderContext,
-        private readonly _options: OptionValues<typeof cPlusPlusOptions>
+        private readonly _options: OptionValues<typeof qtOptions>
     ) {
         super(targetLanguage, renderContext);
 
