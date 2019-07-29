@@ -153,10 +153,10 @@ script/quicktype # rebuild (slow) and run (fast)
 #### Windows
 
 ```bash
-npm install --ignore-scripts # Install dependencies
-npm install -g typescript # Install typescript globally
-tsc --project src/cli # Rebuild
-node dist\cli\index.js # Run
+npm install --ignore-scripts # Install dependencies <- strange errors...
+npm install -g typescript # Install typescript globally <- strange errors...
+tsc --project src/cli # Rebuild <- strange errors...
+node dist\cli\index.js # Run <- works somehow...
 ```
 
 ### Edit
